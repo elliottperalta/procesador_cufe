@@ -4,7 +4,7 @@ Aplicación web para validar Códigos Únicos de Facturación Electrónica (CUFE
 
 ## Características
 
-- **Interfaz intuitiva**: Permite cargar archivos Excel con CUFEs de manera sencilla.
+- **Interfaz intuitiva**: Permite cargar archivos Excel con CUFEs o colocarlos de manera manual en el cuadro de texto.
 - **Validación automática**: Consulta cada CUFE en la base de datos de la DGI.
 - **Detección de duplicados**: Identifica CUFEs duplicados en el archivo cargado.
 - **Reporte visual**: Muestra estadísticas y gráficos de los resultados.
