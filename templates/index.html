@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Validación de CUFEs - DGI</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            padding-top: 2rem;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .upload-container {
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+        .drop-area {
+            border: 2px dashed #6c757d;
+            border-radius: 5px;
+            padding: 3rem 1rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .drop-area:hover, .drop-area.dragover {
+            border-color: #0d6efd;
+            background-color: rgba(13, 110, 253, 0.05);
+        }
+        .file-info {
+            margin-top: 1rem;
+            display: none;
+        }
+        .progress-container {
+            margin-top: 1rem;
+            display: none;
+        }
+        .results-container {
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+            padding: 2rem;
+            margin-bottom: 2rem;
+            display: none;
+        }
+        .chart-container {
+            height: 300px;
+            margin-top: 1rem;
+        }
+        .status-icon {
+            font-size: 1.5rem;
+            margin-right: 0.5rem;
+        }
+        .success-icon {
+            color: #198754;
+        }
+        .error-icon {
+            color: #dc3545;
+        }
+        .warning-icon {
+            color: #ffc107;
+        }
+
+        .main-content {
+            flex: 1;
+        }
+    </style>
+</head>
+<body>
+    <div class="main-content">
+        <div class="container">
+            <div class="row justify-content-center">
+                <div class="col-md-10">
+                    <div class="text-center mb-4">
+                        <h1>Validación de CUFEs en la DGI</h1>
+                        <p class="lead">Carga un archivo Excel o ingresa los CUFEs manualmente para validarlos</p>
+                    </div>
+
+                <div class="upload-container">
+                    <h3><i class="fas fa-upload me-2"></i>Cargar archivo</h3>
+                    <div class="drop-area" id="dropArea">
+                        <input type="file" id="fileInput" hidden accept=".xlsx, .xls">
+                        <i class="fas fa-file-excel fa-3x mb-3" style="color: #198754;"></i>
+                        <h4>Arrastra y suelta tu archivo Excel aquí</h4>
+                        <p>o <button class="btn btn-primary" id="browseBtn">Selecciona un archivo</button></p>
+                        <p class="text-muted small">Formatos aceptados: .xlsx, .xls</p>
+                    </div>
+
+                    <div class="file-info" id="fileInfo">
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>
+                            <span id="fileName"></span>
+                            <button class="btn btn-sm btn-outline-danger float-end" id="removeFile">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <button class="btn btn-success w-100" id="processBtn">
+                            <i class="fas fa-cogs me-2"></i>Procesar CUFEs
+                        </button>
+                    </div>
+
+                    <div class="progress-container" id="progressContainer">
+                        <p id="statusText">Procesando CUFEs...</p>
+                        <div class="progress">
+                            <div class="progress-bar progress-bar-striped progress-bar-animated bg-success" id="progressBar" role="progressbar" style="width: 0%">0%</div>
+                        </div>
+                        <p class="text-muted small mt-2" id="progressDetail"></p>
+                    </div>
+                </div>
+
+                <div class="upload-container">
+                    <h3><i class="fas fa-keyboard me-2"></i>Ingresar CUFEs manualmente</h3>
+                    <p class="text-muted small">Ingresa uno o más CUFEs, uno por línea</p>
+                    <textarea class="form-control" id="manualCufes" rows="6" placeholder="FE0120000155745255-2-2023-6100002026033100000133220010119501669199&#10;FE0120000155745255-2-2023-6100002026030200000121270010118525259924"></textarea>
+                    <button class="btn btn-success w-100 mt-3" id="processManualBtn">
+                        <i class="fas fa-cogs me-2"></i>Procesar CUFEs
+                    </button>
+                </div>
+
+                <div class="results-container" id="resultsContainer">
+                    <h3><i class="fas fa-chart-pie me-2"></i>Resultados</h3>
+                    
+                    <div class="row mt-4">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-body">
+                                    <h5 class="card-title">Resumen</h5>
+                                    <ul class="list-group list-group-flush" id="resultsList">
+                                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                                            Total de CUFEs procesados
+                                            <span class="badge bg-primary rounded-pill" id="totalCufes">0</span>
+                                        </li>
+                                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                                            <span><i class="fas fa-check-circle status-icon success-icon"></i>Recibidos por la DGI</span>
+                                            <span class="badge bg-success rounded-pill" id="recibidosCufes">0</span>
+                                        </li>
+                                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                                            <span><i class="fas fa-times-circle status-icon error-icon"></i>No recibidos por la DGI</span>
+                                            <span class="badge bg-danger rounded-pill" id="noRecibidosCufes">0</span>
+                                        </li>
+                                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                                            <span><i class="fas fa-exclamation-triangle status-icon warning-icon"></i>Errores de procesamiento</span>
+                                            <span class="badge bg-warning rounded-pill" id="erroresCufes">0</span>
+                                        </li>
+                                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                                            <span><i class="fas fa-clone status-icon" style="color: #6f42c1;"></i>CUFEs duplicados</span>
+                                            <span class="badge bg-secondary rounded-pill" id="duplicadosCufes">0</span>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-body text-center">
+                                    <h5 class="card-title">Gráfico de resultados</h5>
+                                    <div class="chart-container" id="chartContainer"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 text-center">
+                        <a href="#" class="btn btn-primary btn-lg" id="downloadBtn">
+                            <i class="fas fa-download me-2"></i>Descargar Excel con resultados
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Elementos
+            const dropArea = document.getElementById('dropArea');
+            const fileInput = document.getElementById('fileInput');
+            const browseBtn = document.getElementById('browseBtn');
+            const fileInfo = document.getElementById('fileInfo');
+            const fileName = document.getElementById('fileName');
+            const removeFile = document.getElementById('removeFile');
+            const processBtn = document.getElementById('processBtn');
+            const progressContainer = document.getElementById('progressContainer');
+            const statusText = document.getElementById('statusText');
+            const resultsContainer = document.getElementById('resultsContainer');
+            const downloadBtn = document.getElementById('downloadBtn');
+            
+            // Stats elements
+            const totalCufes = document.getElementById('totalCufes');
+            const recibidosCufes = document.getElementById('recibidosCufes');
+            const noRecibidosCufes = document.getElementById('noRecibidosCufes');
+            const erroresCufes = document.getElementById('erroresCufes');
+            
+            let chart = null;
+            let selectedFile = null;
+            let downloadFilename = '';
+
+            // Eventos de drop area
+            browseBtn.addEventListener('click', () => {
+                fileInput.click();
+            });
+
+            fileInput.addEventListener('change', (e) => {
+                handleFile(e.target.files[0]);
+            });
+
+            dropArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dropArea.classList.add('dragover');
+            });
+
+            dropArea.addEventListener('dragleave', () => {
+                dropArea.classList.remove('dragover');
+            });
+
+            dropArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dropArea.classList.remove('dragover');
+                const file = e.dataTransfer.files[0];
+                if (file && (file.name.endsWith('.xlsx') || file.name.endsWith('.xls'))) {
+                    handleFile(file);
+                } else {
+                    alert('Por favor, sube únicamente archivos Excel (.xlsx o .xls)');
+                }
+            });
+
+            removeFile.addEventListener('click', () => {
+                resetForm();
+            });
+
+            processBtn.addEventListener('click', () => {
+                if (!selectedFile) return;
+                
+                // Mostrar progreso
+                fileInfo.style.display = 'none';
+                progressContainer.style.display = 'block';
+                statusText.textContent = 'Subiendo archivo...';
+                const progressBar = document.getElementById('progressBar');
+                const progressDetail = document.getElementById('progressDetail');
+                progressBar.style.width = '0%';
+                progressBar.textContent = '0%';
+                progressDetail.textContent = '';
+                
+                // Crear FormData
+                const formData = new FormData();
+                formData.append('file', selectedFile);
+                
+                // Enviar solicitud
+                fetch('/procesar', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`Error HTTP ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.error) {
+                        alert('Error: ' + data.error);
+                        resetForm();
+                        return;
+                    }
+                    
+                    // Iniciar polling de progreso
+                    const jobId = data.job_id;
+                    const total = data.total;
+                    statusText.textContent = `Procesando ${total} CUFEs...`;
+                    
+                    const pollInterval = setInterval(() => {
+                        fetch(`/progreso/${jobId}`)
+                        .then(r => r.json())
+                        .then(prog => {
+                            const pct = Math.round((prog.procesados / prog.total) * 100);
+                            progressBar.style.width = pct + '%';
+                            progressBar.textContent = pct + '%';
+                            progressDetail.textContent = `${prog.procesados} de ${prog.total} CUFEs procesados`;
+                            
+                            if (prog.estado === 'completado') {
+                                clearInterval(pollInterval);
+                                
+                                // Actualizar estadísticas
+                                totalCufes.textContent = prog.stats.total;
+                                recibidosCufes.textContent = prog.stats.recibidos;
+                                noRecibidosCufes.textContent = prog.stats.no_recibidos;
+                                erroresCufes.textContent = prog.stats.errores;
+                                document.getElementById('duplicadosCufes').textContent = prog.stats.duplicados;
+                                
+                                downloadFilename = prog.stats.archivo;
+                                downloadBtn.href = `/descargar/${encodeURIComponent(downloadFilename)}`;
+                                
+                                createChart(prog.stats);
+                                
+                                progressContainer.style.display = 'none';
+                                resultsContainer.style.display = 'block';
+                            } else if (prog.estado === 'error') {
+                                clearInterval(pollInterval);
+                                alert('Error: ' + prog.error);
+                                resetForm();
+                            }
+                        })
+                        .catch(err => {
+                            console.error('Error polling:', err);
+                        });
+                    }, 1000);
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error al procesar el archivo: ' + error.message);
+                    resetForm();
+                });
+            });
+
+            // Procesar CUFEs manuales
+            document.getElementById('processManualBtn').addEventListener('click', () => {
+                const manualText = document.getElementById('manualCufes').value.trim();
+                if (!manualText) {
+                    alert('Por favor, ingresa al menos un CUFE');
+                    return;
+                }
+                
+                progressContainer.style.display = 'block';
+                statusText.textContent = 'Enviando CUFEs...';
+                const progressBar = document.getElementById('progressBar');
+                const progressDetail = document.getElementById('progressDetail');
+                progressBar.style.width = '0%';
+                progressBar.textContent = '0%';
+                progressDetail.textContent = '';
+                resultsContainer.style.display = 'none';
+                
+                fetch('/procesar_manual', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({cufes: manualText})
+                })
+                .then(response => {
+                    if (!response.ok) throw new Error(`Error HTTP ${response.status}`);
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.error) {
+                        alert('Error: ' + data.error);
+                        resetForm();
+                        return;
+                    }
+                    
+                    const jobId = data.job_id;
+                    statusText.textContent = `Procesando ${data.total} CUFEs...`;
+                    
+                    const pollInterval = setInterval(() => {
+                        fetch(`/progreso/${jobId}`)
+                        .then(r => r.json())
+                        .then(prog => {
+                            const pct = Math.round((prog.procesados / prog.total) * 100);
+                            progressBar.style.width = pct + '%';
+                            progressBar.textContent = pct + '%';
+                            progressDetail.textContent = `${prog.procesados} de ${prog.total} CUFEs procesados`;
+                            
+                            if (prog.estado === 'completado') {
+                                clearInterval(pollInterval);
+                                totalCufes.textContent = prog.stats.total;
+                                recibidosCufes.textContent = prog.stats.recibidos;
+                                noRecibidosCufes.textContent = prog.stats.no_recibidos;
+                                erroresCufes.textContent = prog.stats.errores;
+                                document.getElementById('duplicadosCufes').textContent = prog.stats.duplicados;
+                                downloadFilename = prog.stats.archivo;
+                                downloadBtn.href = `/descargar/${encodeURIComponent(downloadFilename)}`;
+                                createChart(prog.stats);
+                                progressContainer.style.display = 'none';
+                                resultsContainer.style.display = 'block';
+                            } else if (prog.estado === 'error') {
+                                clearInterval(pollInterval);
+                                alert('Error: ' + prog.error);
+                                resetForm();
+                            }
+                        })
+                        .catch(err => console.error('Error polling:', err));
+                    }, 1000);
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error al procesar: ' + error.message);
+                    resetForm();
+                });
+            });
+
+            function handleFile(file) {
+                if (!file) return;
+                
+                selectedFile = file;
+                fileName.textContent = file.name;
+                fileInfo.style.display = 'block';
+            }
+
+            function resetForm() {
+                selectedFile = null;
+                fileInput.value = '';
+                fileInfo.style.display = 'none';
+                progressContainer.style.display = 'none';
+                resultsContainer.style.display = 'none';
+            }
+
+            function createChart(stats) {
+                try {
+                    const ctx = document.getElementById('chartContainer');
+                    
+                    // Destruir gráfico anterior si existe
+                    if (chart) {
+                        chart.destroy();
+                    }
+                    
+                    // Verificar que Chart.js está cargado correctamente
+                    if (typeof Chart === 'undefined') {
+                        console.error('Chart.js no está cargado correctamente');
+                        document.getElementById('chartContainer').innerHTML = '<div class="alert alert-warning">No se pudo cargar el gráfico. Chart.js no está disponible.</div>';
+                        return;
+                    }
+                    
+                    // Crear un canvas para el gráfico
+                    const canvas = document.createElement('canvas');
+                    canvas.id = 'pieChart';
+                    document.getElementById('chartContainer').innerHTML = '';
+                    document.getElementById('chartContainer').appendChild(canvas);
+                    
+                    // Crear nuevo gráfico
+                    chart = new Chart(canvas, {
+                        type: 'pie',
+                        data: {
+                            labels: ['Recibidos', 'No recibidos', 'Errores', 'Duplicados'],
+                            datasets: [{
+                                data: [stats.recibidos, stats.no_recibidos, stats.errores, stats.duplicados],
+                                backgroundColor: [
+                                    'rgba(25, 135, 84, 0.7)',
+                                    'rgba(220, 53, 69, 0.7)',
+                                    'rgba(255, 193, 7, 0.7)',
+                                    'rgba(111, 66, 193, 0.7)'
+                                ],
+                                borderColor: [
+                                    'rgba(25, 135, 84, 1)',
+                                    'rgba(220, 53, 69, 1)',
+                                    'rgba(255, 193, 7, 1)',
+                                    'rgba(111, 66, 193, 1)'
+                                ],
+                                borderWidth: 1
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    position: 'bottom'
+                                }
+                            }
+                        }
+                    });
+                } catch (error) {
+                    console.error('Error al crear el gráfico:', error);
+                    document.getElementById('chartContainer').innerHTML = '<div class="alert alert-warning">No se pudo generar el gráfico: ' + error.message + '</div>';
+                }
+            }
+        });
+    </script>
+</body>
+</html>

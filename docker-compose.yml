@@ -1,0 +1,15 @@
+version: '3'
+
+services:
+  cufe-app:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    container_name: cufe-validation-app
+    ports:
+      - "5003:5003"
+    volumes:
+      - ./static:/app/static
+    restart: unless-stopped
+    environment:
+      - PYTHONUNBUFFERED=1
